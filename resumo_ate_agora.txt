@@ -1,0 +1,63 @@
+RESUMO DO TRABALHO ATÉ AGORA (24/11/2026)
+==========================================
+Entrega final: 09/12/2026 | Apresentações: 14 e 16/12/2026
+
+A IDEIA
+-------
+Chat seguro entre dois computadores, cifrado com ChaCha20-Poly1305.
+A = servidor (id 1), B = cliente (id 2).
+
+DECISÕES
+--------
+- Chave: senha combinada antes + scrypt. A sorteia um salt de 16 bytes e
+  manda em claro; cada lado calcula a chave sozinho. A chave NUNCA vai
+  pela rede.
+- Nonce (12 bytes): 4 bytes do id + 8 bytes do contador. Cada lado tem seu
+  contador, que sobe +1 por mensagem. Nunca se repete.
+- AAD: 1 byte com o remetente (b"A" ou b"B"). Vai em claro no pacote, mas
+  não pode ser trocado, porque entra no cálculo da tag.
+- Pacote:
+    [tamanho 4][remetente 1][nonce 12][cifrado + tag 16]
+  O tamanho conta só o que vem depois dele (o corpo).
+
+ARQUIVOS
+--------
+cripto.py          PRONTO   a criptografia
+  gerar_salt()       16 bytes aleatórios
+  derivar_chave()    senha + salt -> chave de 32 bytes (scrypt)
+  montar_nonce()     id + contador -> nonce de 12 bytes
+  cifrar()           mensagem -> cifrado + tag (AAD entra na tag)
+  decifrar()         cifrado + tag -> mensagem, ou erro InvalidTag
+
+protocolo.py       PRONTO   monta e desmonta o pacote
+  montar_pacote()    quem envia: cifra e junta os campos
+  desmontar_pacote() quem recebe: separa os campos e decifra
+
+chat.py            A FAZER  conexão pela rede (sockets) + tela
+atacante.py        A FAZER  demonstrações de ataque
+chacha_manual.py   OPCIONAL cálculos do ChaCha20 mostrados passo a passo
+LEIA-ME.txt        A FAZER  como rodar
+
+Depois: executável (PyInstaller) + zip + artigo.
+
+O QUE JÁ TESTAMOS
+-----------------
+- Mesma senha + mesmo salt = mesma chave; senha diferente = outra chave.
+- "oi" (2 bytes) cifrado = 18 bytes (2 + 16 da tag).
+- AAD trocado (A -> B): InvalidTag, mensagem recusada.
+- 1 bit alterado no cifrado: InvalidTag, mensagem recusada.
+- Pacote de "oi" = 35 bytes (4 de tamanho + 31 de corpo).
+
+CONCEITOS PARA LEMBRAR
+----------------------
+- InvalidTag não é função nossa: é um erro da biblioteca. Nós só tratamos
+  com try/except.
+- bytes e bytearray: a mesma fila de números (0 a 255); bytes não pode
+  ser alterado, bytearray pode.
+- x[0] devolve um número; x[0:1] devolve bytes.
+- to_bytes(4, "big"): número -> 4 bytes. int.from_bytes(): o contrário.
+
+GIT
+---
+Repositório: github.com/AnnaKareninaLopes/ChaCha20-Poly1305
+A pasta docs/ fica fora do git (.gitignore).
